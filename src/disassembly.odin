@@ -13,24 +13,69 @@ hex_string_u16 :: #force_inline proc(sb: ^strings.Builder, n: u16, uppercase := 
 
 hex_string :: proc{hex_string_u8, hex_string_u16}
 
-decode_instruction :: proc(sb: ^strings.Builder, data: [3]u8) -> int {
-	hex_string(sb, data[0], uppercase=true)
-	fmt.sbprint(sb, "\n")
-	return 1
+fetch_operand :: proc(data: []u8, blueprint: Opcode_Entry_Operand) -> (operand: Operand) {
+	operand.type = blueprint.type
+	switch blueprint.fetch {
+	case .NONE:
+		operand.value = blueprint.value
+	case .BYTE_1:
+		signed := blueprint.type == .OFFSET
+		operand.value = signed ? i32((^i8)(&data[1])^) : i32(data[1])
+	case .BYTE_2:
+		signed := blueprint.type == .OFFSET
+		operand.value = signed ? i32((^i8)(&data[2])^) : i32(data[2])
+	case .TWO_BYTES:
+		operand.value = i32(u16(data[1]) << 8 | u16(data[2]))
+	case .ADDR_11:
+		operand.value = blueprint.value + i32(data[1])
+	}
+	return
+}
+
+decode_instruction :: proc(data: []u8, position, rem: u32) -> (Instruction, bool) {
+	opcode_entry := OPCODE_TABLE[data[0]]
+	if rem < u32(opcode_entry.bytes) {
+		return {}, false
+	}
+	return Instruction{
+		u16(position),
+		opcode_entry.bytes,
+		opcode_entry.op,
+		{a=fetch_operand(data, opcode_entry.a)},
+		{b=fetch_operand(data, opcode_entry.b)},
+		fetch_operand(data, opcode_entry.transfer),
+	}, true
 }
 
 disassemble_bin :: proc(data: []u8) -> string {
 	sb := strings.builder_make(256)
-	position: int = 0
-	imem := [3]u8{0, 0, 0}
+	position: u32
 
-	for position < len(data) {
-		copy_n := min(len(data) - position, 3)
-		for i := copy_n; i < 3; i += 1 {
-			imem[i] = 0
+	instructions := make([dynamic]Instruction, 0, 32)
+	defer delete(instructions)
+
+	for position < u32(len(data)) {
+		rem := u32(len(data)) - position
+		inst, ok := decode_instruction(data[position:], position, rem)
+		if !ok {
+			panic("Malformed instruction stream!")
 		}
-		copy(imem[:], data[position:position+copy_n])
-		position += decode_instruction(&sb, imem)
+		append(&instructions, inst)
+		position += u32(inst.bytes)
+	}
+
+	for inst in instructions {
+		fmt.sbprint(&sb, inst.op, "")
+		if inst.destination.type != .NONE {
+			fmt.sbprint(&sb, inst.destination.type, "")
+		}
+		if inst.source.type != .NONE {
+			fmt.sbprint(&sb, inst.source.type, "")
+		}
+		if inst.transfer.type != .NONE {
+			fmt.sbprint(&sb, inst.transfer.type)
+		}
+		fmt.sbprintln(&sb)
 	}
 
 	return strings.to_string(sb)
