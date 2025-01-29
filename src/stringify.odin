@@ -23,14 +23,26 @@ operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 		strings.write_string(sb, "AB")
 	case .CARRY_BIT:
 		strings.write_string(sb, "C")
-	case .BIT_ADDR, .DIRECT_ADDR:
-		fmt.sbprintf(sb, "0x%02X", operand.value)
+	case .BIT_ADDR:
+		symbol := symbol_from_address(u16(operand.value), .IRAM_BIT)
+		if symbol == "" {
+			fmt.sbprintf(sb, "0x%02X", operand.value)
+		} else {
+			fmt.sbprintf(sb, "%s.%d", symbol, operand.value & 0b111)
+		}
 	case .INV_BIT_ADDR:
 		fmt.sbprintf(sb, "/0x%02X", operand.value)
 	case .IMM, .IMM_LONG:
 		fmt.sbprintf(sb, "#0x%02X ; %d", operand.value, operand.value)
 	case .DPTR:
 		strings.write_string(sb, "DPTR")
+	case .DIRECT_ADDR:
+		symbol := symbol_from_address(u16(operand.value), .IRAM)
+		if symbol == "" {
+			fmt.sbprintf(sb, "0x%02X", operand.value)
+		} else {
+			strings.write_string(sb, symbol)
+		}
 	case .INDIRECT_REG:
 		fmt.sbprintf(sb, "@R%d", operand.value)
 	case .INDIRECT_DPTR:
