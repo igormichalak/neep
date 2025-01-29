@@ -20,7 +20,7 @@ get_sfr_page_reg_address :: proc() -> u8 {
 	}
 }
 
-symbol_from_address :: proc(address: u16, address_type: Address_Type, sfr_page := UNKNOWN_SFR_PAGE) -> (symbol: string, ok: bool) {
+symbol_from_address :: proc(address: u16, address_type: Address_Type, sfr_page := UNKNOWN_SFR_PAGE) -> string {
 	switch get_cmd_opts().mcu {
 	case mcu.EFM8BB52:
 		mcu_address_type := mcu.Address_Type(address_type)

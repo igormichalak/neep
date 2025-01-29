@@ -4,12 +4,88 @@ EFM8BB52 :: "efm8bb52"
 
 EFM8BB52_SFR_PAGE_REG_ADDRESS :: 0xA7
 
-efm8bb52_symbol_from_address :: proc(address: u16, address_type: Address_Type, sfr_page: int) -> (symbol: string, ok: bool) {
-	return "", false
+@(private="file")
+MIN_SFR_ADDRESS :: 0x80
+
+@(private="file")
+MAX_SFR_ADDRESS :: 0xFF
+
+efm8bb52_symbol_from_address :: proc(address: u16, address_type: Address_Type, sfr_page := UNKNOWN_SFR_PAGE) -> string {
+	#partial switch address_type {
+	case .FLASH, .XRAM:
+		return ""
+	}
+	if address < MIN_SFR_ADDRESS || address > MAX_SFR_ADDRESS {
+		return ""
+	}
+
+	sfr_address: u16
+	#partial switch address_type {
+	case .IRAM:
+		sfr_address = address
+	case .IRAM_BIT:
+		sfr_address = address & 0xFFF8
+	}
+
+	switch sfr_page {
+	case 0x00:
+		return _sfr_page_0[sfr_address]
+	case 0x10:
+		return _sfr_page_1[sfr_address]
+	case 0x20:
+		return _sfr_page_2[sfr_address]
+	case 0x30:
+		return _sfr_page_3[sfr_address]
+	case UNKNOWN_SFR_PAGE:
+		return _sfr_common[sfr_address]
+	}
+
+	return ""
 }
 
 @(private="file")
-_sfr_page_0 :: [256]string {
+_sfr_common := [256]string {
+	0x00..<0x80 = "",
+	0x80 = "P0",
+	0x81 = "SP",
+	0x82 = "DPL",
+	0x83 = "DPH",
+	0x84 = "",
+	0x85 = "",
+	0x86 = "",
+	0x87 = "PCON0",
+	0x88..<0x8F = "",
+	0x8F = "PSCTL",
+	0x90 = "P1",
+	0x91..<0x97 = "",
+	0x97 = "WDTCN",
+	0x98..<0xA0 = "",
+	0xA0 = "P2",
+	0xA1..<0xA7 = "",
+	0xA7 = "SFRPAGE",
+	0xA8 = "IE",
+	0xA9 = "CLKSEL",
+	0xAA..<0xB0 = "",
+	0xB0 = "P3",
+	0xB1..<0xB7 = "",
+	0xB7 = "FLKEY",
+	0xB8 = "IP",
+	0xB9..<0xCD = "",
+	0xCD = "PCON1",
+	0xCE = "",
+	0xCF = "",
+	0xD0 = "PSW",
+	0xD1..<0xE0 = "",
+	0xE0 = "ACC",
+	0xE1..<0xE7 = "",
+	0xE7 = "EMI0CN",
+	0xE8..<0xF0 = "",
+	0xF0 = "B",
+	0xF1..=0xFF = "",
+}
+
+@(private="file")
+_sfr_page_0 := [256]string {
 	0x00..<0x80 = "",
 	0x80 = "P0",
 	0x81 = "SP",
@@ -142,7 +218,7 @@ _sfr_page_0 :: [256]string {
 }
 
 @(private="file")
-_sfr_page_1 :: [256]string {
+_sfr_page_1 := [256]string {
 	0x00..<0x80 = "",
 	0x80 = "P0",
 	0x81 = "SP",
@@ -275,7 +351,7 @@ _sfr_page_1 :: [256]string {
 }
 
 @(private="file")
-_sfr_page_2 :: [256]string {
+_sfr_page_2 := [256]string {
 	0x00..<0x80 = "",
 	0x80 = "P0",
 	0x81 = "SP",
@@ -408,7 +484,7 @@ _sfr_page_2 :: [256]string {
 }
 
 @(private="file")
-_sfr_page_3 :: [256]string {
+_sfr_page_3 := [256]string {
 	0x00..<0x80 = "",
 	0x80 = "P0",
 	0x81 = "SP",
@@ -492,19 +568,7 @@ _sfr_page_3 :: [256]string {
 	0xCF = "",
 	0xD0 = "PSW",
 	0xD1 = "REF0CN",
-	0xD2 = "",
-	0xD3 = "",
-	0xD4 = "",
-	0xD5 = "",
-	0xD6 = "",
-	0xD7 = "",
-	0xD8 = "",
-	0xD9 = "",
-	0xDA = "",
-	0xDB = "",
-	0xDC = "",
-	0xDD = "",
-	0xDE = "",
+	0xD2..<0xDF = "",
 	0xDF = "ADC0CF2",
 	0xE0 = "ACC",
 	0xE1 = "",
@@ -523,19 +587,5 @@ _sfr_page_3 :: [256]string {
 	0xEE = "",
 	0xEF = "",
 	0xF0 = "B",
-	0xF1 = "",
-	0xF2 = "",
-	0xF3 = "",
-	0xF4 = "",
-	0xF5 = "",
-	0xF6 = "",
-	0xF7 = "",
-	0xF8 = "",
-	0xF9 = "",
-	0xFA = "",
-	0xFB = "",
-	0xFC = "",
-	0xFD = "",
-	0xFE = "",
-	0xFF = "",
+	0xF1..=0xFF = "",
 }
