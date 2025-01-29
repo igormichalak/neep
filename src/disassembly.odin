@@ -36,7 +36,7 @@ disassemble_bin :: proc(data: []u8) -> string {
 		rem_bytes := max_address - address
 		instruction, ok := decode_instruction(data[address:], rem_bytes)
 		if !ok {
-			panic("Malformed instruction stream!")
+			panic("malformed instruction stream")
 		}
 		next_address := address + u32(instruction.bytes)
 		append(&lines, Disassembly_Line{

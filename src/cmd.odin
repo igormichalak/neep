@@ -3,6 +3,16 @@ package neep
 import "core:fmt"
 import "core:os"
 
+CMD_Options :: struct {
+	mcu: string,
+}
+
+get_cmd_opts :: proc() -> CMD_Options {
+	return CMD_Options{
+		mcu="efm8bb52",
+	}
+}
+
 print_usage :: proc(exec_name: string) {
 	fmt.println("Usage:", flush=false)
 	fmt.printf("%s disassemble file.bin\n", exec_name)
