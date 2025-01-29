@@ -1,6 +1,5 @@
 package neep
 
-import "core:fmt"
 import "core:strings"
 
 Disassembly_Line :: struct {
@@ -8,16 +7,6 @@ Disassembly_Line :: struct {
 	raw: []u8,
 	instruction: Instruction,
 }
-
-hex_string_u8 :: #force_inline proc(sb: ^strings.Builder, n: u8, uppercase := false) {
-	fmt.sbprintf(sb, "%02X" if uppercase else "%02x", n)
-}
-
-hex_string_u16 :: #force_inline proc(sb: ^strings.Builder, n: u16, uppercase := false) {
-	fmt.sbprintf(sb, "%04X" if uppercase else "%04x", n)
-}
-
-hex_string :: proc{hex_string_u8, hex_string_u16}
 
 disassembly_line_to_string :: proc(sb: ^strings.Builder, line: ^Disassembly_Line) {
 	hex_string(sb, line.byte_address)
@@ -30,7 +19,7 @@ disassembly_line_to_string :: proc(sb: ^strings.Builder, line: ^Disassembly_Line
 			strings.write_string(sb, "  ")
 		}
 	}
-	strings.write_string(sb, "      ")
+	strings.write_string(sb, "         ")
 	instruction_to_string(sb, &line.instruction)
 	strings.write_rune(sb, '\n')
 }
