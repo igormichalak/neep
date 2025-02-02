@@ -1,7 +1,41 @@
 package neep
 
 import "core:fmt"
+import "core:math"
 import "core:strings"
+
+Character_Case :: enum u8 {
+	UPPERCASE,
+	LOWERCASE,
+}
+
+write_cased_string :: proc(sb: ^strings.Builder, s: string, cc: Character_Case) {
+	for r in s {
+		switch {
+		case cc == .UPPERCASE && 'a' <= r && r <= 'z':
+			strings.write_rune(sb, r - 32)
+		case cc == .LOWERCASE && 'A' <= r && r <= 'Z':
+			strings.write_rune(sb, r + 32)
+		case:
+			strings.write_rune(sb, r)
+		}
+	}
+}
+
+write_space :: proc(sb: ^strings.Builder, width: int) {
+	for _ in 0..<width {
+		strings.write_rune(sb, ' ')
+	}
+}
+
+count_digits :: proc(n: int) -> int {
+	n := n
+	if n == 0 {
+		return 1
+	}
+	n = abs(n)
+	return int(math.floor(math.log10(f64(n)))) + 1
+}
 
 hex_string_u8 :: #force_inline proc(sb: ^strings.Builder, n: u8, uppercase := false) {
 	fmt.sbprintf(sb, "%02X" if uppercase else "%02x", n)
@@ -62,25 +96,7 @@ operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 	}
 }
 
-Character_Case :: enum u8 {
-	UPPERCASE,
-	LOWERCASE,
-}
-
-write_cased_string :: proc(sb: ^strings.Builder, s: string, cc: Character_Case) {
-	for r in s {
-		switch {
-		case cc == .UPPERCASE && 'a' <= r && r <= 'z':
-			strings.write_rune(sb, r - 32)
-		case cc == .LOWERCASE && 'A' <= r && r <= 'Z':
-			strings.write_rune(sb, r + 32)
-		case:
-			strings.write_rune(sb, r)
-		}
-	}
-}
-
-instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction) {
+instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction, jump_operand := "") {
 	mnemonic := Op_Mnemonics[instruction.op]
 	write_cased_string(sb, mnemonic, .LOWERCASE)
 
@@ -107,6 +123,10 @@ instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction) {
 		if hasOperandA || hasOperandB {
 			strings.write_string(sb, ", ")
 		}
-		operand_to_string(sb, &instruction.jump)
+		if jump_operand == "" {
+			operand_to_string(sb, &instruction.jump)
+		} else {
+			strings.write_string(sb, jump_operand)
+		}
 	}
 }
