@@ -33,7 +33,10 @@ operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 	case .INV_BIT_ADDR:
 		fmt.sbprintf(sb, "/0x%02X", operand.value)
 	case .IMM, .IMM_LONG:
-		fmt.sbprintf(sb, "#0x%02X ; %d", operand.value, operand.value)
+		fmt.sbprintf(sb, "#0x%02X", operand.value)
+		if operand.value != 0x00 && operand.value != 0xFF && operand.value != 0xFFFF {
+			fmt.sbprintf(sb, " ; %d", operand.value)
+		}
 	case .DPTR:
 		strings.write_string(sb, "DPTR")
 	case .DIRECT_ADDR:
