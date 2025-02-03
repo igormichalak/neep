@@ -57,7 +57,7 @@ hex_string_u16 :: #force_inline proc(sb: ^strings.Builder, n: u16, uppercase := 
 
 hex_string :: proc{hex_string_u8, hex_string_u16}
 
-operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
+operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand, disasm_ctx: ^Disassembly_Context) {
 	switch operand.type {
 	case .ACC:
 		strings.write_string(sb, ANSI_SEQ_OPERAND + "A" + ANSI_SEQ_RESET)
@@ -68,7 +68,7 @@ operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 	case .CARRY_BIT:
 		strings.write_string(sb, ANSI_SEQ_OPERAND + "C" + ANSI_SEQ_RESET)
 	case .BIT_ADDR:
-		symbol := symbol_from_address(u16(operand.value), .IRAM_BIT)
+		symbol := symbol_from_address(u16(operand.value), .IRAM_BIT, disasm_ctx.sfr_page)
 		if symbol == "" {
 			fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "0x%02X" + ANSI_SEQ_RESET, operand.value)
 		} else {
@@ -84,7 +84,7 @@ operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 	case .DPTR:
 		strings.write_string(sb, ANSI_SEQ_OPERAND + "DPTR" + ANSI_SEQ_RESET)
 	case .DIRECT_ADDR:
-		symbol := symbol_from_address(u16(operand.value), .IRAM)
+		symbol := symbol_from_address(u16(operand.value), .IRAM, disasm_ctx.sfr_page)
 		if symbol == "" {
 			fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "0x%02X" + ANSI_SEQ_RESET, operand.value)
 		} else {
@@ -108,7 +108,12 @@ operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 	}
 }
 
-instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction, jump_operand := "") {
+instruction_to_string :: proc(
+	sb: ^strings.Builder,
+	instruction: ^Instruction,
+	disasm_ctx: ^Disassembly_Context,
+	jump_operand := "",
+) {
 	mnemonic := Op_Mnemonics[instruction.op]
 
 	strings.write_string(sb, ANSI_SEQ_MNEMONIC)
@@ -124,14 +129,14 @@ instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction, j
 	hasOperandB := false
 
 	if instruction.a.type != .NONE {
-		operand_to_string(sb, &instruction.a)
+		operand_to_string(sb, &instruction.a, disasm_ctx)
 		hasOperandA = true
 	}
 	if instruction.b.type != .NONE {
 		if hasOperandA {
 			strings.write_string(sb, ", ")
 		}
-		operand_to_string(sb, &instruction.b)
+		operand_to_string(sb, &instruction.b, disasm_ctx)
 		hasOperandB = true
 	}
 	if instruction.jump.type != .NONE {
@@ -139,7 +144,7 @@ instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction, j
 			strings.write_string(sb, ", ")
 		}
 		if jump_operand == "" {
-			operand_to_string(sb, &instruction.jump)
+			operand_to_string(sb, &instruction.jump, disasm_ctx)
 		} else {
 			strings.write_string(sb, jump_operand)
 		}

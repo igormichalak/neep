@@ -11,6 +11,10 @@ Disassembly_Line :: struct {
 	jumps_to: u16,
 }
 
+Disassembly_Context :: struct {
+	sfr_page: int,
+}
+
 write_label_string :: proc(sb: ^strings.Builder, num, num_width: int, $colon: bool) {
 	when colon {
 		fmt.sbprintf(sb, ANSI_SEQ_LABEL + ".L_%0*[1][0]d" + ANSI_SEQ_RESET + ":", num, num_width)
@@ -27,9 +31,39 @@ label_string :: proc(num, num_width: int, $colon: bool) -> string {
 	}
 }
 
+get_sfr_page :: proc(instruction: ^Instruction, prev_sfr_page: int) -> int {
+	if instruction.op               == .MOV &&
+	   instruction.source.type      == .IMM &&
+	   instruction.destination.type == .DIRECT_ADDR {
+		address, ok := get_sfr_page_reg_address()
+		return int(instruction.source.value) if ok && instruction.destination.value == i32(address) else prev_sfr_page
+	} else {
+		return prev_sfr_page
+	}
+}
+
+new_disassembly_context :: #force_inline proc() -> Disassembly_Context {
+	return Disassembly_Context{sfr_page=UNKNOWN_SFR_PAGE}
+}
+
+update_disassembly_context_pre :: proc(disasm_ctx: ^Disassembly_Context, line: ^Disassembly_Line) {
+	if line.label_num >= 0 {
+		disasm_ctx.sfr_page = UNKNOWN_SFR_PAGE
+	}
+}
+
+update_disassembly_context_post :: proc(disasm_ctx: ^Disassembly_Context, line: ^Disassembly_Line) {
+	if is_branch_op(line.instruction.op) {
+		disasm_ctx.sfr_page = UNKNOWN_SFR_PAGE
+	} else {
+		disasm_ctx.sfr_page = get_sfr_page(&line.instruction, disasm_ctx.sfr_page)
+	}
+}
+
 disassembly_line_to_string :: proc(
 	sb: ^strings.Builder,
 	line: ^Disassembly_Line,
+	disasm_ctx: ^Disassembly_Context,
 	label_digits: int,
 	reference_map: map[u16]int,
 ) {
@@ -55,10 +89,10 @@ disassembly_line_to_string :: proc(
 
 	if jump_label_num, ok := reference_map[line.jumps_to]; ok && jump_label_num >= 0 {
 		jump_operand := label_string(jump_label_num, label_digits, colon=false)
-		instruction_to_string(sb, &line.instruction, jump_operand)
+		instruction_to_string(sb, &line.instruction, disasm_ctx, jump_operand)
 		delete(jump_operand)
 	} else {
-		instruction_to_string(sb, &line.instruction)
+		instruction_to_string(sb, &line.instruction, disasm_ctx)
 	}
 
 	strings.write_rune(sb, '\n')
@@ -109,7 +143,6 @@ disassemble_bin :: proc(data: []u8) -> string {
 	}
 
 	label_counter := -1
-
 	for &line in lines {
 		if line.byte_address in reference_map {
 			label_counter += 1
@@ -117,10 +150,13 @@ disassemble_bin :: proc(data: []u8) -> string {
 			line.label_num = label_counter
 		}
 	}
-
 	label_digits := count_digits(label_counter)
+
+	disasm_ctx := new_disassembly_context()
 	for &line in lines {
-		disassembly_line_to_string(&sb, &line, label_digits, reference_map)
+		update_disassembly_context_pre(&disasm_ctx, &line)
+		disassembly_line_to_string(&sb, &line, &disasm_ctx, label_digits, reference_map)
+		update_disassembly_context_post(&disasm_ctx, &line)
 	}
 
 	return strings.to_string(sb)

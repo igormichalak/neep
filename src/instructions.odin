@@ -155,3 +155,12 @@ Instruction_Specifier :: struct {
 	op: Op,
 	a, b, jump: Operand_Specifier,
 }
+
+is_branch_op :: proc(op: Op) -> bool {
+	#partial switch op {
+	case .ACALL, .LCALL, .RET, .RETI, .AJMP, .LJMP, .SJMP, .JMP, .JZ, .JNZ, .CJNE, .DJNZ:
+		return true
+	case:
+		return false
+	}
+}
