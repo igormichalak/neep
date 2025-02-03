@@ -12,11 +12,19 @@ Disassembly_Line :: struct {
 }
 
 write_label_string :: proc(sb: ^strings.Builder, num, num_width: int, $colon: bool) {
-	fmt.sbprintf(sb, ".L_%0*[1][0]d:" when colon else ".L_%0*[1][0]d", num, num_width)
+	when colon {
+		fmt.sbprintf(sb, ANSI_SEQ_LABEL + ".L_%0*[1][0]d" + ANSI_SEQ_RESET + ":", num, num_width)
+	} else {
+		fmt.sbprintf(sb, ANSI_SEQ_LABEL + ".L_%0*[1][0]d" + ANSI_SEQ_RESET, num, num_width)
+	}
 }
 
 label_string :: proc(num, num_width: int, $colon: bool) -> string {
-	return fmt.aprintf(".L_%0*[1][0]d:" when colon else ".L_%0*[1][0]d", num, num_width)
+	when colon {
+		return fmt.aprintf(ANSI_SEQ_LABEL + ".L_%0*[1][0]d" + ANSI_SEQ_RESET + ":", num, num_width)
+	} else {
+		return fmt.aprintf(ANSI_SEQ_LABEL + ".L_%0*[1][0]d" + ANSI_SEQ_RESET, num, num_width)
+	}
 }
 
 disassembly_line_to_string :: proc(

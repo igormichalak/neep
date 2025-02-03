@@ -1,8 +1,18 @@
 package neep
 
+import "core:encoding/ansi"
 import "core:fmt"
 import "core:math"
 import "core:strings"
+
+ANSI_SEQ_LABEL    :: ansi.CSI + ansi.FG_COLOR_8_BIT + ";3"  + ansi.SGR // 172 is a nice alternative
+ANSI_SEQ_MNEMONIC :: ansi.CSI + ansi.FG_COLOR_8_BIT + ";23" + ansi.SGR
+ANSI_SEQ_LITERAL  :: ansi.CSI + ansi.FG_COLOR_8_BIT + ";96" + ansi.SGR
+ANSI_SEQ_SYMBOL   :: ansi.CSI + ansi.FG_COLOR_8_BIT + ";60" + ansi.SGR
+ANSI_SEQ_OPERAND  :: ansi.CSI + ansi.FG_COLOR_8_BIT + ";60" + ansi.SGR
+ANSI_SEQ_COMMENT  :: ANSI_SEQ_RESET
+
+ANSI_SEQ_RESET :: ansi.CSI + ansi.RESET + ansi.SGR
 
 Character_Case :: enum u8 {
 	UPPERCASE,
@@ -50,55 +60,60 @@ hex_string :: proc{hex_string_u8, hex_string_u16}
 operand_to_string :: proc(sb: ^strings.Builder, operand: ^Operand) {
 	switch operand.type {
 	case .ACC:
-		strings.write_string(sb, "A")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "A" + ANSI_SEQ_RESET)
 	case .REG:
-		fmt.sbprintf(sb, "R%d", operand.value)
+		fmt.sbprintf(sb, ANSI_SEQ_OPERAND + "R%d" + ANSI_SEQ_RESET, operand.value)
 	case .AB:
-		strings.write_string(sb, "AB")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "AB" + ANSI_SEQ_RESET)
 	case .CARRY_BIT:
-		strings.write_string(sb, "C")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "C" + ANSI_SEQ_RESET)
 	case .BIT_ADDR:
 		symbol := symbol_from_address(u16(operand.value), .IRAM_BIT)
 		if symbol == "" {
-			fmt.sbprintf(sb, "0x%02X", operand.value)
+			fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "0x%02X" + ANSI_SEQ_RESET, operand.value)
 		} else {
-			fmt.sbprintf(sb, "%s.%d", symbol, operand.value & 0b111)
+			fmt.sbprintf(sb, ANSI_SEQ_SYMBOL + "%s.%d" + ANSI_SEQ_RESET, symbol, operand.value & 0b111)
 		}
 	case .INV_BIT_ADDR:
-		fmt.sbprintf(sb, "/0x%02X", operand.value)
+		fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "/0x%02X" + ANSI_SEQ_RESET, operand.value)
 	case .IMM, .IMM_LONG:
-		fmt.sbprintf(sb, "#0x%02X", operand.value)
+		fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "#0x%02X" + ANSI_SEQ_RESET, operand.value)
 		if operand.value != 0x00 && operand.value != 0xFF && operand.value != 0xFFFF {
-			fmt.sbprintf(sb, " ; %d", operand.value)
+			fmt.sbprintf(sb, " " + ANSI_SEQ_COMMENT + "; %d" + ANSI_SEQ_RESET, operand.value)
 		}
 	case .DPTR:
-		strings.write_string(sb, "DPTR")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "DPTR" + ANSI_SEQ_RESET)
 	case .DIRECT_ADDR:
 		symbol := symbol_from_address(u16(operand.value), .IRAM)
 		if symbol == "" {
-			fmt.sbprintf(sb, "0x%02X", operand.value)
+			fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "0x%02X" + ANSI_SEQ_RESET, operand.value)
 		} else {
+			strings.write_string(sb, ANSI_SEQ_SYMBOL)
 			strings.write_string(sb, symbol)
+			strings.write_string(sb, ANSI_SEQ_RESET)
 		}
 	case .INDIRECT_REG:
-		fmt.sbprintf(sb, "@R%d", operand.value)
+		fmt.sbprintf(sb, ANSI_SEQ_OPERAND + "@R%d" + ANSI_SEQ_RESET, operand.value)
 	case .INDIRECT_DPTR:
-		strings.write_string(sb, "@DPTR")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "@DPTR" + ANSI_SEQ_RESET)
 	case .INDIRECT_ACC_PLUS_DPTR:
-		strings.write_string(sb, "@A + DPTR")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "@A+DPTR" + ANSI_SEQ_RESET)
 	case .INDIRECT_ACC_PLUS_PC:
-		strings.write_string(sb, "@A + PC")
+		strings.write_string(sb, ANSI_SEQ_OPERAND + "@A+PC" + ANSI_SEQ_RESET)
 	case .ADDR_11, .ADDR_16:
-		fmt.sbprintf(sb, "0x%04x", operand.value)
+		fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "0x%04x" + ANSI_SEQ_RESET, operand.value)
 	case .OFFSET:
-		fmt.sbprintf(sb, "%d", operand.value)
+		fmt.sbprintf(sb, ANSI_SEQ_LITERAL + "%d" + ANSI_SEQ_RESET, operand.value)
 	case .NONE:
 	}
 }
 
 instruction_to_string :: proc(sb: ^strings.Builder, instruction: ^Instruction, jump_operand := "") {
 	mnemonic := Op_Mnemonics[instruction.op]
+
+	strings.write_string(sb, ANSI_SEQ_MNEMONIC)
 	write_cased_string(sb, mnemonic, .LOWERCASE)
+	strings.write_string(sb, ANSI_SEQ_RESET)
 
 	for pad := 6 - len(mnemonic); pad > 0; pad -= 1 {
 		strings.write_rune(sb, ' ')
